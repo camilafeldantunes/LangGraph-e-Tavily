@@ -100,6 +100,17 @@ prompt = """
     Se precisar pesquisar alguma informação antes de fazer a pergunta de acompanhamento, você tem permissão para fazer isso!
 """
 
+query_passado = """"
+    Qual país sediou a Copa do Mundo de futebol em 1998? Quem foi o campeão e qual foi o placar final?
+    Qual era o Produto Interno Bruto (PIB) desse país no ano da Copa e qual o PIB atual (últimos dados disponíveis como 2023 ou 2024)
+    Qual a capital desse país e qual a sua moeda atual? Responda cada pergunta separadamente
+"""
+messages_passado = [
+    HumanMessage(content=query_passado)
+]
+
+
+
 model = ChatOpenAI(
     model="gpt-4.1-mini",
     temperature=0
@@ -118,26 +129,52 @@ messages = [
     HumanMessage(content="Como está o tempo em São Paulo e no Rio de Janeiro hoje?")
 ]
 
+print("\n Iniciando interação do agente sobre perguntas do passado")
+
+current_state = {}
+### .stream para trazer o passo a passo do que foi realizado pelo agente
+for s in abot.graph.stream({"messages": messages_passado}):
+    current_state.update(s)
+    print(s)
+    print("---")
+
+print("\nResultado final passado")
+if current_state and 'llm' in current_state and current_state['llm']['messages']:
+    print(current_state['llm']['messages'][-1].content)
+else:
+    print("Nenhum resultado final ou resultado inesperado")
+
+
+
+
 print("Iniciando interação com o agente")
 final_result_state = None
 
-"""for s in abot.graph.stream({"messages": messages}):
-    print(s)
-    print("---")
-    final_result_state = s"""
 
+### Função Paralela
 result = abot.graph.invoke({"messages": messages})
 print("\nResultado final")
-
 print(result['messages'][-1].content)
-"""if final_result_state and 'llm' in final_result_state and final_result_state['llm']['messages']:
+
+
+### .stream para trazer o passo a passo do que foi realizado pelo agente
+for s in abot.graph.stream({"messages": messages}):
+    print(s)
+    print("---")
+    final_result_state = s
+
+print("\nResultado final")
+
+if final_result_state and 'llm' in final_result_state and final_result_state['llm']['messages']:
     print(final_result_state['llm']['messages'][-1].content)
 else:
     print("Nenhum resultado final ou resultado inesperado")
+
+
 
 try: 
     image_data = abot.graph.get_graph().draw_mermaid_png()
     display(Image(data=image_data))
 except Exception as e:
     print(f"Erro ao tentar gerar PNG no Mermaid {e}")
-    """
+    
