@@ -30,7 +30,11 @@ class Agents:
     def __init__(self, model, tools, system=""):
         self.system = system
         self.model = model
-        self.tools = tools
+
+        self.tools = {
+            tool.name: tool
+            for tool in tools
+        }
         graph = StateGraph(AgentStates)
         graph.add_node("llm", self.call_gpt)
         graph.add_node("action", self.take_action)
@@ -59,16 +63,35 @@ class Agents:
     def take_action(self, state:AgentStates):
         tool_calls = state["messages"][-1].tool_calls
         results = []
+
         for t in tool_calls:
+
             print(f"Calling {t}")
-            if not t.name in self.tools:
-                print("\n ... bad tool name...")
-                result = "bad tool name, retry"
+
+            tool_name = t["name"]
+
+            if tool_name not in self.tools:
+
+                print("bad tool name")
+                result = "bad tool name"
+
             else:
-                result = self.tools[t['name']].invoke(t['args'])
-            results.append(ToolMessage(tool_call_id=t['id'], name=t['name'], content=str(result)))
-        print("Back to the model")
-        return {'messages': results}
+
+                result = self.tools[tool_name].invoke(
+                    t["args"]
+                )
+
+            results.append(
+                ToolMessage(
+                    tool_call_id=t["id"],
+                    name=tool_name,
+                    content=str(result)
+                )
+            )
+
+        print("Back to model")
+
+        return {"messages": results}
 
 prompt = """
     Você é um assistente de pesquisa inteligente. Use o mecanismo de busca para procurar informações. \
@@ -91,10 +114,30 @@ abot = Agents(
 mermaid_code = abot.graph.get_graph().draw_mermaid()
 print(mermaid_code)
 
+messages = [
+    HumanMessage(content="Como está o tempo em São Paulo e no Rio de Janeiro hoje?")
+]
+
+print("Iniciando interação com o agente")
+final_result_state = None
+
+"""for s in abot.graph.stream({"messages": messages}):
+    print(s)
+    print("---")
+    final_result_state = s"""
+
+result = abot.graph.invoke({"messages": messages})
+print("\nResultado final")
+
+print(result['messages'][-1].content)
+"""if final_result_state and 'llm' in final_result_state and final_result_state['llm']['messages']:
+    print(final_result_state['llm']['messages'][-1].content)
+else:
+    print("Nenhum resultado final ou resultado inesperado")
 
 try: 
     image_data = abot.graph.get_graph().draw_mermaid_png()
     display(Image(data=image_data))
 except Exception as e:
     print(f"Erro ao tentar gerar PNG no Mermaid {e}")
-    
+    """
