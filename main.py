@@ -10,8 +10,10 @@ from langchain_core.messages import AnyMessage, SystemMessage, HumanMessage, Too
 from langchain_core.messages import BaseMessage
 from langchain_community.tools import TavilySearchResults
 from langchain_tavily import TavilySearch
+from tavily import TavilyClient
 from IPython.display import Image, display
 import operator
+import re
 
 load_dotenv()
 
@@ -177,4 +179,54 @@ try:
     display(Image(data=image_data))
 except Exception as e:
     print(f"Erro ao tentar gerar PNG no Mermaid {e}")
+
+
+print("============================")
+print("============================")
+print("============================")
+print("============================")
+print("")
+
+
+###### BUSCA REGULAR E BUSCA AGÊNTICA --- WEB SCRAPING ##########
+
+## Busca regular -- Busca no Google, Edge
+## Busca agêntica -- utiliza agentes autonomos para realizar a pesquisa
+# Na busca agentica ela entende o contexto e ela é proativa, vai aprendendo conforme voce for executando
+
+
+client = TavilyClient(api_key=TAVILY_API_KEY)
+
+cidade = "Belém do Pará"
+tavily_query = f"restaurante em {cidade} tripadvisor com maior quantidade de reviews e faixa de preço"
+
+print("Iniciando busca agêntica por URL's do TripAdvisor com Tavily")
+
+tripadvisor_url = None
+try:
+    tavily_results = client.search(query=tavily_query, max_results=5)
+    if tavily_results and tavily_results["results"]:
+        print(f"Tavily encontrou {len(tavily_results['results'])} resultado. Analisando...")
+        for result in tavily_results["results"]:
+            url = result['url']
+
+            if "tripadvisor.com" in url or "tripadvisor.com.br" in url:
+                tripadvisor_url = url
+                break
+        if not tripadvisor_url:
+            print("Nenhum URL interessante foi encontrado nos primeiros resultados")
+    else:
+        print("Tavily não encontrou resultado para busca agentica")
+
+except Exception as e:
+    print(f"Erro na busca agêntica com Tavily {e}. Verifique chave de API ou conexão")
+
+if tripadvisor_url:
+    clean_url = re.sub(r'-oa\d+-', '-', tripadvisor_url)
+    tripadvisor_url = clean_url
+    print("URL encontrada limpa de paginação")
+
+print("="*50)
+print(f"URL final para a raspagem {tripadvisor_url if tripadvisor_url else 'NÃO ENCONTRADO'}")
+
     
