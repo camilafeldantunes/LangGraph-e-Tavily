@@ -10,7 +10,12 @@ from langchain_core.messages import AnyMessage, SystemMessage, HumanMessage, Too
 from langchain_core.messages import BaseMessage
 from langchain_community.tools import TavilySearchResults
 from langchain_tavily import TavilySearch
+from selenium import webdriver
+from selenium.webdriver.chrome.service import Service
+from webdriver_manager.chrome import ChromeDriverManager
+from selenium.common.exceptions import WebDriverException, TimeoutException
 from tavily import TavilyClient
+from bs4 import BeautifulSoup
 from IPython.display import Image, display
 import operator
 import re
@@ -228,5 +233,55 @@ if tripadvisor_url:
 
 print("="*50)
 print(f"URL final para a raspagem {tripadvisor_url if tripadvisor_url else 'NÃO ENCONTRADO'}")
+
+
+def scrape_restaurante_info(url):
+    if not url:
+        print("Erro: Url vazia ou não localizada pela raspagem")
+        return None
+    try:
+        service = Service(ChromeDriverManager().install())
+        options = webdriver.ChromeOptions()
+        options.add_argument("--headless=new")
+        options.add_argument("--disable-blink-features=AutomationControlled")
+        
+        driver = webdriver.Chrome(service=service, options=options)
+        driver.set_page_load_timeout(30)
+    except Exception as e:
+        print(f"Erro ao inicializar Selenium {e}")
+        return None
+    
+    try:
+        print("Tentando inicializar página com Selenium")
+        driver.get(url)
+
+        driver.implicitly_wait(10)
+
+        response_text = driver.page_source
+    except TimeoutException:
+        print("Erro ao carregar a página")
+        return None
+    except WebDriverException as e:
+        print("Erro ao carregar a página. Pode ser erro de conexão")
+        return None
+    finally:
+        driver.quit()
+    soup = BeautifulSoup(response_text, 'html.parser')
+    return soup
+
+soup_tripadvisor = None
+
+if tripadvisor_url:
+    print("Tentando raspar página identificada")
+    soup_tripadvisor = scrape_restaurante_info(tripadvisor_url)
+
+    if soup_tripadvisor:
+        title = soup_tripadvisor.find("title")
+        print(title.get_text(strip=True) if title else "Sem título")
+    else:
+        print("Falha ao raspar página")
+else:
+    print("Nao ha url válida")
+print("-"*50)
 
     
